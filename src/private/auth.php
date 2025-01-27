@@ -27,32 +27,6 @@ function areUserAndPasswordValid($user, $password) {
     }
 }
 
-# Register new user
-function registerUser($user, $password) {
-    global $db;
-
-    // Validación de entradas
-    $user = filter_var($user, FILTER_SANITIZE_STRING);
-
-    // Verificar si el usuario ya existe
-    $stmt = $db->prepare('SELECT userId FROM users WHERE username = :username');
-    $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-    $result = $stmt->execute();
-    if ($result->fetchArray()) {
-        return FALSE; // Usuario ya existe
-    }
-
-    // Hashing de contraseñas
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-    // Uso de consultas preparadas para evitar inyección SQL
-    $stmt = $db->prepare('INSERT INTO users (username, password) VALUES (:username, :password)');
-    $stmt->bindValue(':username', $user, SQLITE3_TEXT);
-    $stmt->bindValue(':password', $hashedPassword, SQLITE3_TEXT);
-
-    return $stmt->execute();
-}
-
 # On login
 if (isset($_POST['username']) && isset($_POST['password'])) {		
     $_COOKIE['user'] = $_POST['username'];

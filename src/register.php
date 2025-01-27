@@ -6,20 +6,24 @@ if (!isset($_SESSION['userId'])) {
     header("Location: index.php");
     exit;
 }
-# Require logged users
-# require dirname(__FILE__) . '/private/auth.php';
 
 if (isset($_POST['username']) && isset($_POST['password'])) {
-	# Just in from POST => save to database
+    # Just in from POST => save to database
     $username = $_POST['username'];
-	$password = $_POST['password'];
-	
-	$username = SQLite3::escapeString($username);
-	$password = SQLite3::escapeString($password);
+    $password = $_POST['password'];
 
-	$query = "INSERT INTO users (username, password) VALUES ('$username', '$password')";
+    // Validación de entradas
+    $username = filter_var($username, FILTER_SANITIZE_STRING);
 
-	$db->query($query) or die("Invalid query");
+    // Hashing de contraseñas
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    // Uso de consultas preparadas para evitar inyección SQL
+    $stmt = $db->prepare('INSERT INTO users (username, password) VALUES (:username, :password)');
+    $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+    $stmt->bindValue(':password', $hashedPassword, SQLITE3_TEXT);
+
+    $stmt->execute() or die("Invalid query");
     header("Location: list_players.php");
 }
 
