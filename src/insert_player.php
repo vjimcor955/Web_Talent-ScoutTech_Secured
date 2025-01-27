@@ -5,31 +5,46 @@ require_once dirname(__FILE__) . '/private/conf.php';
 require dirname(__FILE__) . '/private/auth.php';
 
 if (isset($_POST['name']) && isset($_POST['team'])) {
-	# Just in from POST => save to database
-	$name = $_POST['name'];
-	$team = $_POST['team'];
+    # Just in from POST => save to database
+    $name = $_POST['name'];
+    $team = $_POST['team'];
 
-	// Modify player or add a new one
-	if (isset($_GET['id']))
-		$query = "INSERT OR REPLACE INTO players (playerid, name, team) VALUES ('".$_GET['id']."','$name', '$team')";
-	else
-		$query = "INSERT INTO players (name, team) VALUES ('$name', '$team')";
+    // Cambio: Uso de htmlspecialchars para evitar ataques XSS
+    $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    $team = htmlspecialchars($team, ENT_QUOTES, 'UTF-8');    
 
-	$db->query($query) or die("Invalid query");
+    // Cambio: Uso de consultas preparadas para evitar inyección SQL
+    if (isset($_GET['id'])) {
+        $query = "INSERT OR REPLACE INTO players (playerid, name, team) VALUES (:id, :name, :team)";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':id', $_GET['id'], SQLITE3_INTEGER);
+    } else {
+        $query = "INSERT INTO players (name, team) VALUES (:name, :team)";
+        $stmt = $db->prepare($query);
+    }
+
+    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    $stmt->bindValue(':team', $team, SQLITE3_TEXT);
+    $stmt->execute() or die("Invalid query");
 } else {
-	# Show info to modify
-	if (isset($_GET['id'])) {
-		# Edit from database
-		$id = $_GET['id'];
-	
-		$query ="SELECT name, team FROM players WHERE playerid = '$id'";
-
-        $result = $db->query($query) or die ("$query");
-		$row = $result->fetchArray() or die ("modifying a nonexistent player!");
-	
-		$name = $row['name'];
-		$team = $row['team'];
-	}
+    # Show info to modify
+    if (isset($_GET['id'])) {
+        # Edit from database
+        $id = $_GET['id'];
+    
+        // Cambio: Uso de consultas preparadas para evitar inyección SQL
+        $query = "SELECT name, team FROM players WHERE playerid = :id";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        $result = $stmt->execute() or die ("$query");
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        if ($row === false) {
+            die("modifying a nonexistent player!");
+        }
+    
+        $name = $row['name'];
+        $team = $row['team'];
+    }
 }
 
 # Show form
